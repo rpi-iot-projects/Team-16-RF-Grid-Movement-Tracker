@@ -1,0 +1,111 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Live RFID Display</title>
+  <style>
+    body {
+      text-align: center;
+      background: white;
+      font-family: sans-serif;
+    }
+    /* Grid container styling */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 60px); /* 4 columns */
+      grid-template-rows: repeat(3, 60px);    /* 3 rows */
+      gap: 5px;
+      justify-content: center;
+      margin: 30px auto;
+    }
+
+    .cell {
+      width: 60px;
+      height: 60px;
+      background-color: #ddd;
+      border: 1px solid #aaa;
+      transition: background-color 0.3s ease;
+      display: flex;               
+      justify-content: center;     
+      align-items: center;         
+      font-size: 14px;             
+      font-weight: bold;
+    }
+    /* Style for when a cell is active (highlighted) */
+    .active {
+      background-color: orange !important;
+    }
+  </style>
+
+  <script>
+    var ws;
+    var wsUri = "ws:";
+    var loc = window.location;
+    if (loc.protocol === "https:") { wsUri = "wss:"; }
+    // Build the full WebSocket URI based on current location, adjusting the path
+    wsUri += "//" + loc.host + loc.pathname.replace("attendence", "ws/timestamp");
+
+    function wsTimestampConnect() {
+      ws = new WebSocket(wsUri);// Create a new WebSocket connection
+
+      ws.onmessage = function(msg) {
+        const name = msg.data.split("#")[1];   // Get the coordinate part after '#' (e.g., "(1,2)")
+        try {
+            const coords = name.replace(/[()]/g, "").split(",");  // Remove parentheses and split into array
+            const row = parseInt(coords[0]); // Convert first number to row (integer)
+            const col = parseInt(coords[1]);  
+    
+            highlightCell(row, col); 
+        } catch (e) {
+            console.error("Bad coordinate format:", name);// Log error if parsing fails
+        }
+        };
+
+
+      ws.onopen = () => console.log("Connected to ws/timestamp");
+      ws.onclose = () => setTimeout(wsTimestampConnect, 3000);
+    }
+
+    function highlightCell(row, col) {
+        // Select the correct cell using its data-row and data-col attributes
+        const selector = `.cell[data-row='${row}'][data-col='${col}']`;
+        const cell = document.querySelector(selector);
+        if (cell) {
+            cell.classList.add("active");
+            setTimeout(() => cell.classList.remove("active"), 3000);// Remove highlight after 3 seconds
+        } else {
+            console.warn(`No cell found at row=${row}, col=${col}`);
+        }
+    }
+
+
+    function createGrid() {
+      const grid = document.createElement("div");// Create a div element for the grid
+      grid.className = "grid";
+    
+      // Nested loops to create each cell
+      for (let row = 1; row <= 3; row++) {     
+        for (let col = 1; col <= 4; col++) {   
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.dataset.row = row;
+          cell.dataset.col = col;
+          cell.textContent = `(${row},${col})`; // Label the cell with its (row,col)
+          grid.appendChild(cell);// Add cell to the grid container
+        }
+      }
+      document.body.appendChild(grid);
+    }
+
+    window.onload = function() {
+      createGrid(); // Build the grid
+      wsTimestampConnect();
+    };
+  </script>
+</head>
+
+<body>
+  <h2 style="color: #ff6600;">Live RFID Grid</h2>
+</body>
+</html>
+
+
